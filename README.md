@@ -12,7 +12,7 @@ Run on the server/computer where the Omeka installation is found. You can pass t
     chmod u+x onus.sh
     ```
 - Change any default variables at the top of the file
-    # ex. paths to mysql, php, and git
+    - ex. paths to mysql, php, and git
 - Run the script
 
     ```
