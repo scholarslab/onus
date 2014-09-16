@@ -158,10 +158,12 @@ function upgrade_neatline() {
                 $GIT submodule add -f https://github.com/scholarslab/NeatlineMaps.git NeatlineMaps
             fi
         else
-            cd $base_dir/${OmekaDir}/plugins/
-            $GIT submodule add -f https://github.com/scholarslab/nl-widget-Text.git NeatlineText
-            $GIT submodule add -f https://github.com/scholarslab/nl-widget-Simile.git NeatlineSimile
-            $GIT submodule add -f https://github.com/scholarslab/nl-widget-Waypoints.git NeatlineWaypoints
+            if [[ ! -d $base_dir/${OmekaDir}/plugins/NeatlineWaypoints ]]; then
+                cd $base_dir/${OmekaDir}/plugins/
+                $GIT submodule add -f https://github.com/scholarslab/nl-widget-Text.git NeatlineText
+                $GIT submodule add -f https://github.com/scholarslab/nl-widget-Simile.git NeatlineSimile
+                $GIT submodule add -f https://github.com/scholarslab/nl-widget-Waypoints.git NeatlineWaypoints
+            fi
         fi
 
         # Looking for exact number, so comparing as strings is OK
@@ -378,9 +380,8 @@ else
             fi
         done
 
-        # see if next version of Neatline is greater than 1.1.3 (the last version before 2.0.0)
-        less_than_twozero=$( compare_floats 2.0 $o_upgrade )
-        if $less_than_twozero ; then
+        # If omeka is 1.5.3 or less, then copy over the old themes
+        if [[ $( compare_floats 1.5.3 $o_upgrade ) == "true" ]]; then
             cp -r $path/themes/neatlinetheme/ $base_dir/NewOmeka/themes/neatlinetheme/
             cp -r $path/themes/neatlinethin/ $base_dir/NewOmeka/themes/neatlinethin/
         fi
