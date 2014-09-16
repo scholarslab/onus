@@ -4,16 +4,16 @@ Run on the server/computer where the Omeka installation is found. You can pass t
 
 
 
-Usage:
-# Download the file.
-# Change execute permissions
+# Usage:
+- Download the file.
+- Change execute permissions
 
     ```
     chmod u+x onus.sh
     ```
-# Change any default variables at the top of the file
+- Change any default variables at the top of the file
     # ex. paths to mysql, php, and git
-# Run the script
+- Run the script
 
     ```
     ./onus /path/to/Omeka/install/
