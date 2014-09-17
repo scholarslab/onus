@@ -119,11 +119,18 @@ tbldump() {
 # Uses global variables.
 #
 # Usage:
-# upgrade_neatline
+# upgrade_neatline [version]
+#
+# version : an optional version number to upgrade neatline to, otherwise it finds the current version and upgrades to the next version
 function upgrade_neatline() {
     # an array put together by getting versions from neatline github
     NEATLINES=( $( $GIT ls-remote --tags http://github.com/scholarslab/Neatline | cut -d"/" -f3 | egrep -v "[a-z]|{" ) )
-    n_upgrade=$( get_next_version $neatline_version NEATLINES[@] )
+    if [[ -z ${1:-} ]]; then 
+        n_upgrade=$( get_next_version $neatline_version NEATLINES[@] )
+    else
+        n_upgrade=$1
+    fi
+
 
     if [[ ${NEATLINES[@]:(-1)} = $neatline_version ]]; then
         echo
@@ -301,7 +308,7 @@ fi
 # So, testing for Omeka at version 1.5.3 and Neatline version less than or equal to 1.1.2
 if [[ $omeka_version == "1.5.3" && $(compare_floats 1.1.2 $neatline_version) == "true" ]]; then
     echo -e "${yellow}Neatline needs to be upgraded before upgrading to the next Omeka version.\nPlease run this script again to upgrade Omeka.${reset}"
-    upgrade_neatline
+    upgrade_neatline 1.1.3
 
 else
     ########################################
@@ -316,6 +323,23 @@ else
     OMEKAS=( $($GIT ls-remote --tags https://github.com/omeka/Omeka | cut -d"/" -f 3 | sed 's/^v//' | egrep -v "[a-z]|{") )
     # get the next available version of Omeka
     o_upgrade=$( get_next_version $omeka_version OMEKAS[@] )
+
+    # if current omeka version is less than 1.5.3, then upgrade omeka to 1.5.3
+    if [[ $(compare_floats $omeka_version 1.5.3) == "false" ]]; then
+        o_upgrade="1.5.3"
+
+    # if current omeka version is 1.5.3, then upgrade omeka to 2.0.4
+    elif [[ $omeka_version == "1.5.3" ]]; then
+        o_upgrade="2.0.4"
+
+    # if current omeka version is equal to 2.0.4, then upgrade omeka to 2.1.4
+    elif [[ $omeka_version  == "2.0.4" ]]; then
+        o_upgrade="2.1.4"
+
+    # if current omeka version is equal to 2.1.4, then upgrade omeka to the latest
+    elif [[ $omeka_version == "2.1.4" ]]; then
+        o_upgrade=${OMEKAS[@]:(-1)}
+    fi
 
     # compare current version with last element in OMEKAS array 
     if [[ ${OMEKAS[@]:(-1)} == $omeka_version ]]; then
@@ -349,11 +373,10 @@ else
 
         echo -e "$green Copy files.$reset"
         # Pre 2.x Omeka used archive/files/, post 2.0 uses files/original/
-        if [[ $o_upgrade == "2.0" ]]; then
+        if [[ $o_upgrade == "2.0.4" ]]; then
             cp -r $path/archive/ $base_dir/NewOmeka/files/
             rm -rf $base_dir/NewOmeka/files/original/
             mv $base_dir/NewOmeka/files/files/ $base_dir/NewOmeka/files/original/
-        #elif [[ $o_upgrade < "2.0.0" ]]; then
         elif [[ $( compare_floats 1.5.3 $o_upgrade ) == "true" ]]; then
             cp -r $path/archive/ $base_dir/NewOmeka/archive/
         else
@@ -394,7 +417,15 @@ else
     fi # end update omeka
 
     # upgrade the neatline plugin
-    upgrade_neatline
+    if [[ $o_upgrade == "1.5.3" ]]; then
+        upgrade_neatline 1.1.3
+    elif [[ $o_upgrade == "2.0.4" ]]; then
+        upgrade_neatline 2.0.0
+    elif [[ $o_upgrade == "2.1.4" ]]; then
+        upgrade_neatline  2.1.3
+    elif [[ $(compare_floats $o_upgrade 2.2) == "true" ]]; then
+        upgrade_neatline 2.3.0
+    fi
 fi
 
 
