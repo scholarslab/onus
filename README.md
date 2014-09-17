@@ -26,7 +26,7 @@ An example usage, upgrading Omeka from version 1.5.1 and Neatline from 1.0.0.
 
 NOTE: The Neatline Exhibit maps will be broken until Omeka and Neatline are upgraded to the latest version. This script needs to be run at least four times (with interaction with the Omeka Admin website) to get to that point.
 
-## First Run
+### First Run
 - Run the script for the first time
 
     ```
@@ -36,7 +36,7 @@ NOTE: The Neatline Exhibit maps will be broken until Omeka and Neatline are upgr
 - Upgrades: Omeka 1.5.1 => 1.5.3 and Neatline 1.0.0 => 1.1.3
 - Login to Omeka admin and upgrade all plugins.
 
-## Second Run
+### Second Run
 - Run the script
 
     ```
@@ -53,7 +53,7 @@ NOTE: The Neatline Exhibit maps will be broken until Omeka and Neatline are upgr
     - http://yoursite.com/neatline/
 - Also, the neatline map exhibits are broken until Omeka and Neatline are upgraded all the way.
 
-## Third Run
+### Third Run
 - Run the script
 
     ```
@@ -64,7 +64,7 @@ NOTE: The Neatline Exhibit maps will be broken until Omeka and Neatline are upgr
 - Activate needed plugins.
 - NOTE: The neatline exhibit maps are still broken at this stage.
 
-## Fourth Run
+### Fourth Run
 - Run the script
 
     ```
