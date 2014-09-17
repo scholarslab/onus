@@ -38,6 +38,34 @@ MADMIN="/Applications/MAMP/Library/bin/mysqladmin"
 PHP="/Applications/MAMP/bin/php/php5.5.10/bin/php"
 
 
+while getopts "n:o:st" opt; do
+    case $opt in
+        n)
+            NEATVERSION="$OPTARG"
+            ;;
+        o)
+            OMEKAVERSION="$OPTARG"
+            ;;
+        s)
+            SKIPOMEKA="true"
+            ;;
+        t)
+            SKIPNEAT="true"
+            ;;
+        \?)
+            echo "Invalid argument"
+            exit 1
+            ;;
+        :)
+            echo "Option -$OPTARG requires an argument."
+            exit 1
+            ;;
+    esac
+done
+shift $(($OPTIND - 1))
+
+
+
 ################################################################################
 #
 #
@@ -125,18 +153,21 @@ tbldump() {
 function upgrade_neatline() {
     # an array put together by getting versions from neatline github
     NEATLINES=( $( $GIT ls-remote --tags http://github.com/scholarslab/Neatline | cut -d"/" -f3 | egrep -v "[a-z]|{" ) )
-    if [[ -z ${1:-} ]]; then 
+    if [[ -n ${NEATVERSION:-} ]]; then
+        n_upgrade=$NEATVERSION
+    elif [[ -z ${1:-} ]]; then 
         n_upgrade=$( get_next_version $neatline_version NEATLINES[@] )
     else
         n_upgrade=$1
     fi
 
 
-    if [[ ${NEATLINES[@]:(-1)} = $neatline_version ]]; then
+    if [[ ${SKIPNEAT:-} ]]; then
+        echo
+        echo -e "${magenta}Skipping Neatline upgrade${reset}"
+    elif [[ ${NEATLINES[@]:(-1)} = $neatline_version ]]; then
         echo
         echo -e "${cyan}Neatline is up to date! $reset"
-    #elif [[ $n_upgrade > $o_upgrade ]]; then
-        #echo -e "${magenta}Skipping Neatline upgrade until Omeka is upgraded to next major version.${reset}"
     else
         if [[ -d $base_dir/NewOmeka ]]; then
             OmekaDir="NewOmeka"
@@ -148,11 +179,13 @@ function upgrade_neatline() {
         echo -e "${magenta}Checking out new Neatline plugin, version $n_upgrade.$reset"
         cd $base_dir/${OmekaDir}/plugins/
         if [[ -d $base_dir/${OmekaDir}/plugins/Neatline/ ]]; then
-            #rm -rf $base_dir/${OmekaDir}/plugins/Neatline/
+            rm -rf $base_dir/${OmekaDir}/plugins/Neatline/
+            $GIT rm -rf Neatline || true
+            $GIT submodule add -f https://github.com/scholarslab/Neatline.git Neatline/
             cd $base_dir/${OmekaDir}/plugins/Neatline/
             $GIT checkout tags/$n_upgrade
         else
-            $GIT submodule add -f https://github.com/scholarslab/Neatline.git Neatline
+            $GIT submodule add -f https://github.com/scholarslab/Neatline.git Neatline/
             cd $base_dir/${OmekaDir}/plugins/Neatline/
             $GIT checkout tags/$n_upgrade
         fi
@@ -160,16 +193,16 @@ function upgrade_neatline() {
         # Use NeatlineMaps if next version of neatline is less than or equal to 1.1.3
         # otherwise, next version is greater than 1.1.3 so use sub-plugins
         if [[ $( compare_floats 1.1.3 $n_upgrade ) == "true" ]]; then
-            if [[ ! -d $base_dir/${OmekaDir}/plugins/NeatlineMaps/ ]]; then
-                cd $base_dir/${OmekaDir}/plugins/
-                $GIT submodule add -f https://github.com/scholarslab/NeatlineMaps.git NeatlineMaps
-            fi
+            cd $base_dir/${OmekaDir}/plugins/
+            rm -rf $base_dir/${OmekaDir}/plugins/NeatlineMaps/
+            #$GIT rm -rf NeatlineMaps
+            $GIT submodule add -f https://github.com/scholarslab/NeatlineMaps.git NeatlineMaps/
         else
             if [[ ! -d $base_dir/${OmekaDir}/plugins/NeatlineWaypoints ]]; then
                 cd $base_dir/${OmekaDir}/plugins/
-                $GIT submodule add -f https://github.com/scholarslab/nl-widget-Text.git NeatlineText
-                $GIT submodule add -f https://github.com/scholarslab/nl-widget-Simile.git NeatlineSimile
-                $GIT submodule add -f https://github.com/scholarslab/nl-widget-Waypoints.git NeatlineWaypoints
+                $GIT submodule add -f https://github.com/scholarslab/nl-widget-Text.git NeatlineText/
+                $GIT submodule add -f https://github.com/scholarslab/nl-widget-Simile.git NeatlineSimile/
+                $GIT submodule add -f https://github.com/scholarslab/nl-widget-Waypoints.git NeatlineWaypoints/
             fi
         fi
 
@@ -210,10 +243,9 @@ function upgrade_neatline() {
 
             #$MYSQL --user=${DBUSER} --password=${DBPASS} --host=${DBHOST} --port=${DBPORT} ${DBNAME} --execute="DROP TABLE IF EXISTS ${DBPREF}neatline_maps_servers; DROP TABLE IF EXISTS ${DBPREF}neatline_maps_services""
              
-        fi
+        fi # end special stuff if version 2.0.0
 
-
-    fi
+    fi # end check if neatline is up to date
 }
 
 ################################################################################
@@ -306,11 +338,12 @@ fi
 
 # if Omeka is at 1.5.3, upgrade neatline only until it gets to 1.1.3
 # So, testing for Omeka at version 1.5.3 and Neatline version less than or equal to 1.1.2
-if [[ $omeka_version == "1.5.3" && $(compare_floats 1.1.2 $neatline_version) == "true" ]]; then
-    echo -e "${yellow}Neatline needs to be upgraded before upgrading to the next Omeka version.\nPlease run this script again to upgrade Omeka.${reset}"
-    upgrade_neatline 1.1.3
+#elif [[ $omeka_version == "1.5.3" && $(compare_floats 1.1.2 $neatline_version) == "true" ]]; then
+#    echo -e "${yellow}Neatline needs to be upgraded before upgrading to the next Omeka version.\nPlease run this script again to upgrade Omeka.${reset}"
+#    upgrade_neatline 1.1.3
 
-else
+#else
+
     ########################################
     # Upgrade Omeka to the next version
 
@@ -324,8 +357,12 @@ else
     # get the next available version of Omeka
     o_upgrade=$( get_next_version $omeka_version OMEKAS[@] )
 
+    # if the -o option is set, use the supplied version
+    if [[ -n ${OMEKAVERSION:-} ]]; then
+        o_upgrade=$OMEKAVERSION
+
     # if current omeka version is less than 1.5.3, then upgrade omeka to 1.5.3
-    if [[ $(compare_floats $omeka_version 1.5.3) == "false" ]]; then
+    elif [[ $(compare_floats $omeka_version 1.5.3) == "false" ]]; then
         o_upgrade="1.5.3"
 
     # if current omeka version is 1.5.3, then upgrade omeka to 2.0.4
@@ -341,14 +378,17 @@ else
         o_upgrade=${OMEKAS[@]:(-1)}
     fi
 
+    if [[ ${SKIPOMEKA:-} ]]; then
+        echo
+        echo -e "${magenta}Skipping Omeka upgrade.${reset}"
+        o_upgrade=$omeka_version
     # compare current version with last element in OMEKAS array 
-    if [[ ${OMEKAS[@]:(-1)} == $omeka_version ]]; then
+    elif [[ ${OMEKAS[@]:(-1)} == $omeka_version ]]; then
         echo -e "${cyan}Omeka is up to date!${reset}"
+        o_upgrade=$omeka_version
 
     else
         echo -e "${magenta}Upgrading Omeka to version $o_upgrade.${reset}"
-        echo
-        echo -e " Getting new version of Omeka."
         echo
         # Delete botched previous attempts
         if [ -d $base_dir/NewOmeka ]; then
@@ -388,8 +428,14 @@ else
         cd $path/plugins/
         plugin_list=( $( ls -dA */ ) )
         for dir in "${plugin_list[@]}"; do
-            if [[ "$dir" != *"Neatline"* && "$dir" != *"Coins"* && "$dir" != *"SimplePages"* && "$dir" != *"ExhibitBuilder"* ]]; then
-                cp -r $path/plugins/$dir $base_dir/NewOmeka/plugins/$dir
+            if [[ ${SKIPNEAT:-} ]]; then
+                if [[ "$dir" != *"Coins"* && "$dir" != *"SimplePages"* && "$dir" != *"ExhibitBuilder"* ]]; then
+                    cp -r $path/plugins/$dir $base_dir/NewOmeka/plugins/$dir
+                fi
+            else
+                if [[ "$dir" != *"Neatline"* && "$dir" != *"Coins"* && "$dir" != *"SimplePages"* && "$dir" != *"ExhibitBuilder"* ]]; then
+                    cp -r $path/plugins/$dir $base_dir/NewOmeka/plugins/$dir
+                fi
             fi
         done
 
@@ -425,8 +471,10 @@ else
         upgrade_neatline  2.1.3
     elif [[ $(compare_floats $o_upgrade 2.2) == "true" ]]; then
         upgrade_neatline 2.3.0
+    else
+        upgrade_neatline
     fi
-fi
+#fi # end omeka upgrade section
 
 
 
@@ -455,7 +503,8 @@ fi
 
 
 ########################################
-echo
-echo -e "${yellow}You may need to run the database upgrade script from the web admin page.\nYou may also need to upgrade and re-activate any needed plugins.$reset"
-
+if [[ -z ${SKIPOMEKA:-} || -z ${SKIPNEAT:-} ]]; then
+    echo
+    echo -e "${yellow}You may need to run the database upgrade script from the web admin page.\nYou may also need to upgrade and re-activate any needed plugins.$reset"
+fi
 exit 0
