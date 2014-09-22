@@ -23,10 +23,10 @@ The script can take four flags/switches/options
 - Change any default variables at the top of the file
     - ex. paths to MySQL, PHP, and git
 
-    MYSQL="/Applications/MAMP/Library/bin/mysql"
-    MDUMP="/Applications/MAMP/Library/bin/mysqldump"
-    MADMIN="/Applications/MAMP/Library/bin/mysqladmin"
-    PHP="/Applications/MAMP/bin/php/php5.5.10/bin/php"    
+    MYSQL="/path/to/bin/mysql"
+    MDUMP="/path/to/bin/mysqldump"
+    MADMIN="/path/to/bin/mysqladmin"
+    PHP="/path/to/bin/php"    
 
 - Run the script
 
