@@ -23,10 +23,12 @@ The script can take four flags/switches/options
 - Change any default variables at the top of the file
     - ex. paths to MySQL, PHP, and git
 
+    <pre>
     MYSQL="/path/to/bin/mysql"
     MDUMP="/path/to/bin/mysqldump"
     MADMIN="/path/to/bin/mysqladmin"
     PHP="/path/to/bin/php"    
+    </pre>
 
 - Run the script
 
