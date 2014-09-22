@@ -28,14 +28,10 @@ reset=$(tput sgr0)
 
 CURDATE=$( date +%Y-%m-%d-%s )
 GIT=$( which git )
-#MYSQL=$( which mysql )
-#MDUMP=$( which mysqldump )
-#MADMIN=$( which mysqladmin )
-#PHP=$( which php )
-MYSQL="/Applications/MAMP/Library/bin/mysql"
-MDUMP="/Applications/MAMP/Library/bin/mysqldump"
-MADMIN="/Applications/MAMP/Library/bin/mysqladmin"
-PHP="/Applications/MAMP/bin/php/php5.5.10/bin/php"
+MYSQL=$( which mysql )
+MDUMP=$( which mysqldump )
+MADMIN=$( which mysqladmin )
+PHP=$( which php )
 
 
 while getopts "n:o:st" opt; do
@@ -108,11 +104,9 @@ get_next_version() {
     for i in ${ARRAY[@]}
     do
         if awk -v n1=$num -v n2=$i 'BEGIN{ if (n1<n2) exit 0; exit 1}'; then
-            #echo "$num < $i"
             echo $i
             break
         else
-            #echo "$num > $i"
             continue
         fi
     done
@@ -195,7 +189,6 @@ function upgrade_neatline() {
         if [[ $( compare_floats 1.1.3 $n_upgrade ) == "true" ]]; then
             cd $base_dir/${OmekaDir}/plugins/
             rm -rf $base_dir/${OmekaDir}/plugins/NeatlineMaps/
-            #$GIT rm -rf NeatlineMaps
             $GIT submodule add -f https://github.com/scholarslab/NeatlineMaps.git NeatlineMaps/
         else
             if [[ ! -d $base_dir/${OmekaDir}/plugins/NeatlineWaypoints ]]; then
@@ -241,8 +234,6 @@ function upgrade_neatline() {
             $MYSQL --user=${DBUSER} --password=${DBPASS} --host=${DBHOST} --port=${DBPORT} ${DBNAME} --execute="UPDATE ${DBPREF}processes SET status='starting' WHERE id=1;"
             $PHP ${path}/application/scripts/background.php -p 1 
 
-            #$MYSQL --user=${DBUSER} --password=${DBPASS} --host=${DBHOST} --port=${DBPORT} ${DBNAME} --execute="DROP TABLE IF EXISTS ${DBPREF}neatline_maps_servers; DROP TABLE IF EXISTS ${DBPREF}neatline_maps_services""
-             
         fi # end special stuff if version 2.0.0
 
     fi # end check if neatline is up to date
@@ -336,146 +327,135 @@ fi
 ########################################
 # Run the upgrades
 
-# if Omeka is at 1.5.3, upgrade neatline only until it gets to 1.1.3
-# So, testing for Omeka at version 1.5.3 and Neatline version less than or equal to 1.1.2
-#elif [[ $omeka_version == "1.5.3" && $(compare_floats 1.1.2 $neatline_version) == "true" ]]; then
-#    echo -e "${yellow}Neatline needs to be upgraded before upgrading to the next Omeka version.\nPlease run this script again to upgrade Omeka.${reset}"
-#    upgrade_neatline 1.1.3
+########################################
+# upgrade omeka to the next version
 
-#else
+# deactivate plugins
+$mysql --user=${dbuser} --password=${dbpass} --host=${dbhost} --port=${dbport} ${dbname} --execute="update ${dbpref}plugins set active=0 where 1;" 
 
-    ########################################
-    # Upgrade Omeka to the next version
+cd $base_dir
 
-    # Deactivate plugins
-    $MYSQL --user=${DBUSER} --password=${DBPASS} --host=${DBHOST} --port=${DBPORT} ${DBNAME} --execute="UPDATE ${DBPREF}plugins SET active=0 WHERE 1;" 
+# an array put together by getting versions from omeka github
+omekas=( $($git ls-remote --tags https://github.com/omeka/omeka | cut -d"/" -f 3 | sed 's/^v//' | egrep -v "[a-z]|{") )
+# get the next available version of omeka
+o_upgrade=$( get_next_version $omeka_version omekas[@] )
 
-    cd $base_dir
+# if the -o option is set, use the supplied version
+if [[ -n ${omekaversion:-} ]]; then
+    o_upgrade=$omekaversion
+# if current omeka version is less than 1.5.3, then upgrade omeka to 1.5.3
+elif [[ $(compare_floats $omeka_version 1.5.3) == "false" ]]; then
+    o_upgrade="1.5.3"
+# if current omeka version is 1.5.3, then upgrade omeka to 2.0.4
+elif [[ $omeka_version == "1.5.3" ]]; then
+    o_upgrade="2.0.4"
+# if current omeka version is equal to 2.0.4, then upgrade omeka to 2.1.4
+elif [[ $omeka_version  == "2.0.4" ]]; then
+    o_upgrade="2.1.4"
+# if current omeka version is equal to 2.1.4, then upgrade omeka to the latest
+elif [[ $omeka_version == "2.1.4" ]]; then
+    o_upgrade=${omekas[@]:(-1)}
+fi
 
-    # an array put together by getting versions from omeka github
-    OMEKAS=( $($GIT ls-remote --tags https://github.com/omeka/Omeka | cut -d"/" -f 3 | sed 's/^v//' | egrep -v "[a-z]|{") )
-    # get the next available version of Omeka
-    o_upgrade=$( get_next_version $omeka_version OMEKAS[@] )
 
-    # if the -o option is set, use the supplied version
-    if [[ -n ${OMEKAVERSION:-} ]]; then
-        o_upgrade=$OMEKAVERSION
+if [[ ${skipomeka:-} ]]; then
+    echo
+    echo -e "${magenta}skipping omeka upgrade.${reset}"
+    o_upgrade=$omeka_version
 
-    # if current omeka version is less than 1.5.3, then upgrade omeka to 1.5.3
-    elif [[ $(compare_floats $omeka_version 1.5.3) == "false" ]]; then
-        o_upgrade="1.5.3"
+# compare current version with last element in omekas array 
+elif [[ ${omekas[@]:(-1)} == $omeka_version ]]; then
+    echo -e "${cyan}omeka is up to date!${reset}"
+    o_upgrade=$omeka_version
 
-    # if current omeka version is 1.5.3, then upgrade omeka to 2.0.4
-    elif [[ $omeka_version == "1.5.3" ]]; then
-        o_upgrade="2.0.4"
+else
+    echo -e "${magenta}upgrading omeka to version $o_upgrade.${reset}"
+    echo
+    # delete botched previous attempts
+    if [ -d $base_dir/newomeka ]; then
+        rm -rf $base_dir/newomeka
+    fi
+    # clone omeka
+    $git clone https://github.com/omeka/omeka.git newomeka
 
-    # if current omeka version is equal to 2.0.4, then upgrade omeka to 2.1.4
-    elif [[ $omeka_version  == "2.0.4" ]]; then
-        o_upgrade="2.1.4"
+    cd newomeka
 
-    # if current omeka version is equal to 2.1.4, then upgrade omeka to the latest
-    elif [[ $omeka_version == "2.1.4" ]]; then
-        o_upgrade=${OMEKAS[@]:(-1)}
+    # get correct version of omeka and themes/plugins
+    $git checkout tags/v${o_upgrade}
+    $git submodule init
+    $git submodule update
+
+    echo
+    echo -e "$green fix config files.$reset"
+    # get db.ini and fix .htaccess and config.ini
+    cp $path/db.ini $base_dir/newomeka/
+    mv $base_dir/newomeka/application/config/config.ini.changeme $base_dir/newomeka/application/config/config.ini
+    mv $base_dir/newomeka/.htaccess.changeme $base_dir/newomeka/.htaccess
+
+    echo -e "$green copy files.$reset"
+    # pre 2.x omeka used archive/files/, post 2.0 uses files/original/
+    if [[ $o_upgrade == "2.0.4" ]]; then
+        cp -r $path/archive/ $base_dir/newomeka/files/
+        rm -rf $base_dir/newomeka/files/original/
+        mv $base_dir/newomeka/files/files/ $base_dir/newomeka/files/original/
+    elif [[ $( compare_floats 1.5.3 $o_upgrade ) == "true" ]]; then
+        cp -r $path/archive/ $base_dir/newomeka/archive/
+    else
+        cp -r $path/files/ $base_dir/newomeka/files/
     fi
 
-    if [[ ${SKIPOMEKA:-} ]]; then
-        echo
-        echo -e "${magenta}Skipping Omeka upgrade.${reset}"
-        o_upgrade=$omeka_version
-    # compare current version with last element in OMEKAS array 
-    elif [[ ${OMEKAS[@]:(-1)} == $omeka_version ]]; then
-        echo -e "${cyan}Omeka is up to date!${reset}"
-        o_upgrade=$omeka_version
-
-    else
-        echo -e "${magenta}Upgrading Omeka to version $o_upgrade.${reset}"
-        echo
-        # Delete botched previous attempts
-        if [ -d $base_dir/NewOmeka ]; then
-            rm -rf $base_dir/NewOmeka
-        fi
-        # Clone Omeka
-        $GIT clone https://github.com/omeka/Omeka.git NewOmeka
-
-        cd NewOmeka
-
-        # Get correct version of Omeka and themes/plugins
-        $GIT checkout tags/v${o_upgrade}
-        $GIT submodule init
-        $GIT submodule update
-
-        echo
-        echo -e "$green Fix config files.$reset"
-        # Get db.ini and fix .htaccess and config.ini
-        cp $path/db.ini $base_dir/NewOmeka/
-        mv $base_dir/NewOmeka/application/config/config.ini.changeme $base_dir/NewOmeka/application/config/config.ini
-        mv $base_dir/NewOmeka/.htaccess.changeme $base_dir/NewOmeka/.htaccess
-
-        echo -e "$green Copy files.$reset"
-        # Pre 2.x Omeka used archive/files/, post 2.0 uses files/original/
-        if [[ $o_upgrade == "2.0.4" ]]; then
-            cp -r $path/archive/ $base_dir/NewOmeka/files/
-            rm -rf $base_dir/NewOmeka/files/original/
-            mv $base_dir/NewOmeka/files/files/ $base_dir/NewOmeka/files/original/
-        elif [[ $( compare_floats 1.5.3 $o_upgrade ) == "true" ]]; then
-            cp -r $path/archive/ $base_dir/NewOmeka/archive/
+    echo -e "$green copy plugins.$reset"
+    # copy over plugins and themes. don't copy "neatline" or the default plugins/themes.
+    cd $path/plugins/
+    plugin_list=( $( ls -da */ ) )
+    for dir in "${plugin_list[@]}"; do
+        if [[ ${skipneat:-} ]]; then
+            if [[ "$dir" != *"coins"* && "$dir" != *"simplepages"* && "$dir" != *"exhibitbuilder"* ]]; then
+                cp -r $path/plugins/$dir $base_dir/newomeka/plugins/$dir
+            fi
         else
-            cp -r $path/files/ $base_dir/NewOmeka/files/
-        fi
-
-        echo -e "$green Copy Plugins.$reset"
-        # Copy over plugins and themes. Don't copy "Neatline" or the default plugins/themes.
-        cd $path/plugins/
-        plugin_list=( $( ls -dA */ ) )
-        for dir in "${plugin_list[@]}"; do
-            if [[ ${SKIPNEAT:-} ]]; then
-                if [[ "$dir" != *"Coins"* && "$dir" != *"SimplePages"* && "$dir" != *"ExhibitBuilder"* ]]; then
-                    cp -r $path/plugins/$dir $base_dir/NewOmeka/plugins/$dir
-                fi
-            else
-                if [[ "$dir" != *"Neatline"* && "$dir" != *"Coins"* && "$dir" != *"SimplePages"* && "$dir" != *"ExhibitBuilder"* ]]; then
-                    cp -r $path/plugins/$dir $base_dir/NewOmeka/plugins/$dir
-                fi
+            if [[ "$dir" != *"neatline"* && "$dir" != *"coins"* && "$dir" != *"simplepages"* && "$dir" != *"exhibitbuilder"* ]]; then
+                cp -r $path/plugins/$dir $base_dir/newomeka/plugins/$dir
             fi
-        done
-
-        echo -e "$green Copy themes.$reset"
-        # Copy themes, except for "neatline", and default installed themes
-        cd $path/themes/
-        theme_list=( $( ls -dA */ ) )
-        for dir in "${theme_list[@]}"; do
-            if [[ "$dir" != *"neatline"* && "$dir" != *"berlin"* && "$dir" != *"default"* && "$dir" != *"seasons"* ]]; then
-                cp -r $path/themes/$dir $base_dir/NewOmeka/themes/$dir
-            fi
-        done
-
-        # If omeka is 1.5.3 or less, then copy over the old themes
-        if [[ $( compare_floats 1.5.3 $o_upgrade ) == "true" ]]; then
-            cp -r $path/themes/neatlinetheme/ $base_dir/NewOmeka/themes/neatlinetheme/
-            cp -r $path/themes/neatlinethin/ $base_dir/NewOmeka/themes/neatlinethin/
         fi
+    done
 
-        if [[ ! -d $base_dir/NewOmeka/themes/astrolabe ]]; then
-            cd $base_dir/NewOmeka/themes/
-            $GIT submodule add -f https://github.com/scholarslab/astrolabe.git
+    echo -e "$green copy themes.$reset"
+    # copy themes, except for "neatline", and default installed themes
+    cd $path/themes/
+    theme_list=( $( ls -da */ ) )
+    for dir in "${theme_list[@]}"; do
+        if [[ "$dir" != *"neatline"* && "$dir" != *"berlin"* && "$dir" != *"default"* && "$dir" != *"seasons"* ]]; then
+            cp -r $path/themes/$dir $base_dir/newomeka/themes/$dir
         fi
+    done
 
-    fi # end update omeka
-
-    # upgrade the neatline plugin
-    if [[ $o_upgrade == "1.5.3" ]]; then
-        upgrade_neatline 1.1.3
-    elif [[ $o_upgrade == "2.0.4" ]]; then
-        upgrade_neatline 2.0.0
-    elif [[ $o_upgrade == "2.1.4" ]]; then
-        upgrade_neatline  2.1.3
-    elif [[ $(compare_floats $o_upgrade 2.2) == "true" ]]; then
-        upgrade_neatline 2.3.0
-    else
-        upgrade_neatline
+    # if omeka is 1.5.3 or less, then copy over the old themes
+    if [[ $( compare_floats 1.5.3 $o_upgrade ) == "true" ]]; then
+        cp -r $path/themes/neatlinetheme/ $base_dir/newomeka/themes/neatlinetheme/
+        cp -r $path/themes/neatlinethin/ $base_dir/newomeka/themes/neatlinethin/
     fi
-#fi # end omeka upgrade section
 
+    if [[ ! -d $base_dir/newomeka/themes/astrolabe ]]; then
+        cd $base_dir/newomeka/themes/
+        $git submodule add -f https://github.com/scholarslab/astrolabe.git
+    fi
+
+fi # end update omeka
+
+
+# upgrade the neatline plugin
+if [[ $o_upgrade == "1.5.3" ]]; then
+    upgrade_neatline 1.1.3
+elif [[ $o_upgrade == "2.0.4" ]]; then
+    upgrade_neatline 2.0.0
+elif [[ $o_upgrade == "2.1.4" ]]; then
+    upgrade_neatline  2.1.3
+elif [[ $(compare_floats $o_upgrade 2.2) == "true" ]]; then
+    upgrade_neatline 2.3.0
+else
+    upgrade_neatline
+fi
 
 
 ########################################
