@@ -29,7 +29,12 @@ The script can take four flags/switches/options
     MADMIN="/path/to/bin/mysqladmin"
     PHP="/path/to/bin/php"    
     </pre>
+- Change one 'sed' line if needed, to work with GNU/Linux.
+    - Remove the empty double quotes after -i
 
+    ```
+    sed -i "" "80s/.*/${migrate}/" ${path}/plugins/Neatline/migrations/2.0.0/Neatline_Migration_200.php
+    ```
 - Run the script
 
     ```
