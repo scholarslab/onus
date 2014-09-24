@@ -4,10 +4,10 @@ Run on the server/computer where the Omeka installation is found. You can pass t
 
 The script can take four flags/switches/options
 
-    -o [number]  Where [number] is a valid Omeka tag from https://github.com/omeka/Omeka. This will upgrade Omeka to the specified version number.
-
+    -L  Upgrade Omeka and Neatline to the latest and greatest versions. (Note: "Pre-2.0 versions of Neatline can't be upgraded directly to
+    version 2.2. Upgrade to version 2.0 first!")
     -n [number]  Where [number] is a valid Neatline tag from https://github.com/scholarslab/Neatline. This will upgrade Neatline to the specified version number. 
-
+    -o [number]  Where [number] is a valid Omeka tag from https://github.com/omeka/Omeka. This will upgrade Omeka to the specified version number.
     -s  Do not upgrade Omeka
     -t  Do not upgrade Neatline
 
