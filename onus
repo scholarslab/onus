@@ -35,7 +35,7 @@ PHP=$( which php )
 CWD=$( pwd )
 
 
-while getopts "Ln:o:st" opt; do
+while getopts "dLmn:o:st" opt; do
     case $opt in
         d)
             SKIPDIR="true"
@@ -298,6 +298,14 @@ fi
 ########################################
 # Make copy of the site and database before any changes are made
 
+# Get db.ini info
+DBUSER=$( cat ${path}/db.ini | grep "^username" | awk -F\" '{print $(NF-1)}' )
+DBPASS=$( cat ${path}/db.ini | grep "^password" | awk -F\" '{print $(NF-1)}' )
+DBNAME=$( cat ${path}/db.ini | grep "^dbname" | awk -F\" '{print $(NF-1)}' )
+DBPREF=$( cat ${path}/db.ini | grep "^prefix" | awk -F\" '{print $(NF-1)}' )
+DBHOST=$( cat ${path}/db.ini | grep "^host" | awk -F\" '{print $(NF-1)}' )
+DBPORT=$( cat ${path}/db.ini | grep "^port" | awk -F\" '{print $(NF-1)}' )
+
 if [[ -z ${SKIPMYSQL:-} ]]; then
     # Get db.ini info
     DBUSER=$( cat ${path}/db.ini | grep "^username" | awk -F\" '{print $(NF-1)}' )
@@ -336,7 +344,7 @@ if [[ -z ${SKIPOMEKA:-} ]]; then
     else
         omeka_version=$( $MYSQL --user=${DBUSER} --password=${DBPASS} --host=${DBHOST} --port=${DBPORT} ${DBNAME} --raw --silent --silent --execute="SELECT value FROM ${DBPREF}options WHERE name='omeka_version';" )
     fi
-    echo "    ${yellow}Current Omeka version is $omeka_version${reset}"
+    echo -e "    ${yellow}Current Omeka version is $omeka_version${reset}"
 fi
 
 # NEATLINE
@@ -347,7 +355,7 @@ if [[ -z ${SKIPNEAT:-} ]]; then
     else
         neatline_version=$( $MYSQL --user=${DBUSER} --password=${DBPASS} --host=${DBHOST} --port=${DBPORT} ${DBNAME} --raw --silent --silent --execute="SELECT version FROM ${DBPREF}plugins WHERE name='Neatline';" )
     fi
-    echo "    ${yellow}Current Neatline version is $neatline_version${reset}"
+    echo -e "    ${yellow}Current Neatline version is $neatline_version${reset}"
 fi
 
 
@@ -438,7 +446,7 @@ if [[ -z ${SKIPOMEKA:-} ]]; then
         # greater, then copy to the new /files/ folder structure and remove the
         # /archive/ folder structure.
         elif [[ -d $path/archive/ && $( compare_floats $o_upgrade 2.0.0 ) == "false" ]]; then
-            echo "    ${yellow}Migrate from old /archive structure to new /files structure${reset}"
+            echo -e "    ${yellow}Migrate from old /archive structure to new /files structure${reset}"
             cp -r $path/archive/ $base_dir/NewOmeka/files/
             rm -rf $base_dir/NewOmeka/files/original/
             mv $base_dir/NewOmeka/files/files/ $base_dir/NewOmeka/files/original/
