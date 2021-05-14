@@ -449,7 +449,8 @@ if [[ -z ${SKIPOMEKA:-} ]]; then
             echo -e "    ${yellow}Migrate from old /archive structure to new /files structure${reset}"
             cp -r $path/archive/ $base_dir/NewOmeka/files/
             rm -rf $base_dir/NewOmeka/files/original/
-            mv $base_dir/NewOmeka/files/files/ $base_dir/NewOmeka/files/original/
+            mv $base_dir/NewOmeka/files/archive/files/ $base_dir/NewOmeka/files/original/
+            rm -rf $base_dir/NewOmeka/files/archive/
 
         # Otherwise, we must be dealing with omeka greater than 2.0.0 initially, so
         # just copy the /files/ structure.
