@@ -339,8 +339,8 @@ fi
 
 # OMEKA
 if [[ -z ${SKIPOMEKA:-} ]]; then
-    if [[ -e ${path}/paths.php ]]; then
-        omeka_version=$( cat ${path}/paths.php | grep "OMEKA_VERSION"  | awk -F\' '{print $(NF-1)}' )
+    if [[ -e ${path}/bootstrap.php ]]; then
+        omeka_version=$( cat ${path}/bootstrap.php | grep "OMEKA_VERSION"  | awk -F\' '{print $(NF-1)}' )
     else
         omeka_version=$( $MYSQL --user=${DBUSER} --password=${DBPASS} --host=${DBHOST} --port=${DBPORT} ${DBNAME} --raw --silent --silent --execute="SELECT value FROM ${DBPREF}options WHERE name='omeka_version';" )
     fi
